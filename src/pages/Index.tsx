@@ -36,8 +36,8 @@ const Index = () => {
         .lte('price', criteria.maxPrice);
 
       // Apply property type filter
-      if (criteria.propertyType !== 'any') {
-        query = query.eq('property_type', criteria.propertyType);
+      if (criteria.propertyTypes.length > 0) {
+        query = query.in('property_type', criteria.propertyTypes);
       }
 
       // Apply bedrooms filter
@@ -81,11 +81,20 @@ const Index = () => {
         });
       }
 
-      // Scrape new properties
+      // Get local estate agents
+      const agentSites = await supabase.functions.invoke('get-local-agents', {
+        body: { 
+          location: criteria.location,
+          radius: criteria.agentRadius
+        }
+      });
+
+      // Combine default sites with local agent sites
       const sites = [
         `https://www.rightmove.co.uk/property-for-sale/find.html?searchType=SALE&locationIdentifier=${criteria.location}`,
         `https://www.zoopla.co.uk/for-sale/property/${criteria.location}`,
-        `https://www.onthemarket.com/for-sale/${criteria.location}`
+        `https://www.onthemarket.com/for-sale/${criteria.location}`,
+        ...(agentSites.data?.agents || []).map((agent: any) => agent.website)
       ];
 
       // Scrape each site
@@ -94,7 +103,7 @@ const Index = () => {
           body: { 
             url, 
             location: criteria.location,
-            propertyType: criteria.propertyType,
+            propertyTypes: criteria.propertyTypes,
             minPrice: criteria.minPrice,
             maxPrice: criteria.maxPrice,
             bedrooms: criteria.bedrooms

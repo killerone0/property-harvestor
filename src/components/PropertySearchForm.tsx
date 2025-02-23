@@ -5,15 +5,17 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Slider } from "@/components/ui/slider";
+import { Checkbox } from "@/components/ui/checkbox";
 
 interface SearchCriteria {
   location: string;
   minPrice: number;
   maxPrice: number;
-  propertyType: string;
+  propertyTypes: string[];
   bedrooms: string;
-  daysListed: number; // New filter
-  sortBy: 'price_asc' | 'price_desc' | 'date_desc' | 'date_asc'; // New sorting options
+  daysListed: number;
+  agentRadius: number;
+  sortBy: 'price_asc' | 'price_desc' | 'date_desc' | 'date_asc';
 }
 
 interface PropertySearchFormProps {
@@ -21,20 +23,36 @@ interface PropertySearchFormProps {
   isLoading: boolean;
 }
 
+const propertyTypeOptions = [
+  { id: 'house', label: 'House' },
+  { id: 'flat', label: 'Flat' },
+  { id: 'bungalow', label: 'Bungalow' },
+];
+
 export const PropertySearchForm = ({ onSearch, isLoading }: PropertySearchFormProps) => {
   const [criteria, setCriteria] = useState<SearchCriteria>({
     location: "",
     minPrice: 0,
     maxPrice: 1000000,
-    propertyType: "any",
+    propertyTypes: [],
     bedrooms: "any",
     daysListed: 30,
+    agentRadius: 5,
     sortBy: 'date_desc'
   });
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     onSearch(criteria);
+  };
+
+  const togglePropertyType = (typeId: string) => {
+    setCriteria(prev => ({
+      ...prev,
+      propertyTypes: prev.propertyTypes.includes(typeId)
+        ? prev.propertyTypes.filter(id => id !== typeId)
+        : [...prev.propertyTypes, typeId]
+    }));
   };
 
   return (
@@ -72,43 +90,39 @@ export const PropertySearchForm = ({ onSearch, isLoading }: PropertySearchFormPr
         </div>
       </div>
 
-      <div className="grid grid-cols-2 gap-6">
-        <div className="space-y-2">
-          <Label htmlFor="propertyType">Property Type</Label>
-          <Select
-            value={criteria.propertyType}
-            onValueChange={(value) => setCriteria({ ...criteria, propertyType: value })}
-          >
-            <SelectTrigger>
-              <SelectValue placeholder="Select type" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="any">Any</SelectItem>
-              <SelectItem value="house">House</SelectItem>
-              <SelectItem value="flat">Flat</SelectItem>
-              <SelectItem value="bungalow">Bungalow</SelectItem>
-            </SelectContent>
-          </Select>
+      <div className="space-y-4">
+        <Label>Property Types</Label>
+        <div className="grid grid-cols-2 gap-4">
+          {propertyTypeOptions.map((type) => (
+            <div key={type.id} className="flex items-center space-x-2">
+              <Checkbox
+                id={type.id}
+                checked={criteria.propertyTypes.includes(type.id)}
+                onCheckedChange={() => togglePropertyType(type.id)}
+              />
+              <Label htmlFor={type.id} className="cursor-pointer">{type.label}</Label>
+            </div>
+          ))}
         </div>
+      </div>
 
-        <div className="space-y-2">
-          <Label htmlFor="bedrooms">Bedrooms</Label>
-          <Select
-            value={criteria.bedrooms}
-            onValueChange={(value) => setCriteria({ ...criteria, bedrooms: value })}
-          >
-            <SelectTrigger>
-              <SelectValue placeholder="Select bedrooms" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="any">Any</SelectItem>
-              <SelectItem value="1">1</SelectItem>
-              <SelectItem value="2">2</SelectItem>
-              <SelectItem value="3">3</SelectItem>
-              <SelectItem value="4">4+</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
+      <div className="space-y-2">
+        <Label htmlFor="bedrooms">Bedrooms</Label>
+        <Select
+          value={criteria.bedrooms}
+          onValueChange={(value) => setCriteria({ ...criteria, bedrooms: value })}
+        >
+          <SelectTrigger>
+            <SelectValue placeholder="Select bedrooms" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="any">Any</SelectItem>
+            <SelectItem value="1">1</SelectItem>
+            <SelectItem value="2">2</SelectItem>
+            <SelectItem value="3">3</SelectItem>
+            <SelectItem value="4">4+</SelectItem>
+          </SelectContent>
+        </Select>
       </div>
 
       <div className="space-y-4">
@@ -122,6 +136,22 @@ export const PropertySearchForm = ({ onSearch, isLoading }: PropertySearchFormPr
           />
           <div className="text-sm text-gray-500 text-center">
             {criteria.daysListed} days
+          </div>
+        </div>
+      </div>
+
+      <div className="space-y-4">
+        <Label>Search Radius for Estate Agents (miles)</Label>
+        <div className="space-y-2">
+          <Slider
+            value={[criteria.agentRadius]}
+            onValueChange={([value]) => setCriteria({ ...criteria, agentRadius: value })}
+            min={1}
+            max={50}
+            step={1}
+          />
+          <div className="text-sm text-gray-500 text-center">
+            {criteria.agentRadius} miles
           </div>
         </div>
       </div>
