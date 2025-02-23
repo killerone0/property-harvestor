@@ -2,15 +2,16 @@
 import { PropertyCard } from "./PropertyCard";
 
 interface Property {
+  id: string;
   title: string;
-  price: string;
+  price: number;
   location: string;
-  bedrooms: string;
-  propertyType: string;
+  bedrooms: number;
+  property_type: 'house' | 'flat' | 'bungalow';
   source: string;
-  imageUrl: string;
-  lastUpdated: Date;
+  image_url: string;
   url: string;
+  updated_at: string;
 }
 
 interface PropertyResultsProps {
@@ -40,8 +41,8 @@ export const PropertyResults = ({ properties, isLoading }: PropertyResultsProps)
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-      {properties.map((property, index) => (
-        <PropertyCard key={index} property={property} />
+      {properties.map((property) => (
+        <PropertyCard key={property.id} property={property} />
       ))}
     </div>
   );
