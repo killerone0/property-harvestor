@@ -9,7 +9,48 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
-      [_ in never]: never
+      properties: {
+        Row: {
+          bedrooms: number
+          created_at: string | null
+          id: string
+          image_url: string | null
+          location: string
+          price: number
+          property_type: Database["public"]["Enums"]["property_type"]
+          source: string
+          title: string
+          updated_at: string | null
+          url: string
+        }
+        Insert: {
+          bedrooms: number
+          created_at?: string | null
+          id?: string
+          image_url?: string | null
+          location: string
+          price: number
+          property_type: Database["public"]["Enums"]["property_type"]
+          source: string
+          title: string
+          updated_at?: string | null
+          url: string
+        }
+        Update: {
+          bedrooms?: number
+          created_at?: string | null
+          id?: string
+          image_url?: string | null
+          location?: string
+          price?: number
+          property_type?: Database["public"]["Enums"]["property_type"]
+          source?: string
+          title?: string
+          updated_at?: string | null
+          url?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
@@ -18,7 +59,7 @@ export type Database = {
       [_ in never]: never
     }
     Enums: {
-      [_ in never]: never
+      property_type: "house" | "flat" | "bungalow"
     }
     CompositeTypes: {
       [_ in never]: never
