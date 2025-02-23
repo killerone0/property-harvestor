@@ -11,6 +11,10 @@ const corsHeaders = {
 interface RequestBody {
   url: string;
   location: string;
+  propertyType?: string;
+  minPrice?: number;
+  maxPrice?: number;
+  bedrooms?: string;
 }
 
 serve(async (req) => {
@@ -19,7 +23,7 @@ serve(async (req) => {
   }
 
   try {
-    const { url, location } = await req.json() as RequestBody
+    const { url, location, propertyType, minPrice, maxPrice, bedrooms } = await req.json() as RequestBody
     const apiKey = Deno.env.get('FIRECRAWL_API_KEY')
     
     if (!apiKey) {
@@ -28,7 +32,7 @@ serve(async (req) => {
 
     // Initialize Firecrawl
     const firecrawl = new FirecrawlApp({ apiKey })
-    console.log(`Starting crawl for URL: ${url}`)
+    console.log(`Starting crawl for URL: ${url} with filters:`, { location, propertyType, minPrice, maxPrice, bedrooms })
     
     // Crawl the website
     const result = await firecrawl.crawlUrl(url, {
@@ -53,16 +57,28 @@ serve(async (req) => {
     const supabase = createClient(supabaseUrl, supabaseKey)
 
     // Process and store the results
-    const properties = result.data.map((item: any) => ({
-      title: item.title || 'Unknown Property',
-      price: parseFloat(item.price?.replace(/[^0-9.]/g, '') || '0'),
-      location: location,
-      bedrooms: parseInt(item.bedrooms || '0'),
-      property_type: item.propertyType?.toLowerCase() || 'house',
-      source: new URL(url).hostname,
-      image_url: item.imageUrl,
-      url: item.url || url,
-    }))
+    const properties = result.data
+      .filter(item => {
+        const price = parseFloat(item.price?.replace(/[^0-9.]/g, '') || '0')
+        const bedroomCount = parseInt(item.bedrooms || '0')
+        
+        return (
+          (!minPrice || price >= minPrice) &&
+          (!maxPrice || price <= maxPrice) &&
+          (!bedrooms || bedrooms === 'any' || bedroomCount === parseInt(bedrooms)) &&
+          (!propertyType || propertyType === 'any' || item.propertyType?.toLowerCase() === propertyType)
+        )
+      })
+      .map((item: any) => ({
+        title: item.title || 'Unknown Property',
+        price: parseFloat(item.price?.replace(/[^0-9.]/g, '') || '0'),
+        location: location,
+        bedrooms: parseInt(item.bedrooms || '0'),
+        property_type: (item.propertyType?.toLowerCase() || 'house') as 'house' | 'flat' | 'bungalow',
+        source: new URL(url).hostname,
+        image_url: item.imageUrl,
+        url: item.url || url,
+      }));
 
     // Store properties in the database
     const { data, error } = await supabase

@@ -12,6 +12,8 @@ interface SearchCriteria {
   maxPrice: number;
   propertyType: string;
   bedrooms: string;
+  daysListed: number; // New filter
+  sortBy: 'price_asc' | 'price_desc' | 'date_desc' | 'date_asc'; // New sorting options
 }
 
 interface PropertySearchFormProps {
@@ -26,6 +28,8 @@ export const PropertySearchForm = ({ onSearch, isLoading }: PropertySearchFormPr
     maxPrice: 1000000,
     propertyType: "any",
     bedrooms: "any",
+    daysListed: 30,
+    sortBy: 'date_desc'
   });
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -105,6 +109,40 @@ export const PropertySearchForm = ({ onSearch, isLoading }: PropertySearchFormPr
             </SelectContent>
           </Select>
         </div>
+      </div>
+
+      <div className="space-y-4">
+        <Label>Listed Within (days)</Label>
+        <div className="space-y-2">
+          <Slider
+            value={[criteria.daysListed]}
+            onValueChange={([value]) => setCriteria({ ...criteria, daysListed: value })}
+            max={90}
+            step={1}
+          />
+          <div className="text-sm text-gray-500 text-center">
+            {criteria.daysListed} days
+          </div>
+        </div>
+      </div>
+
+      <div className="space-y-2">
+        <Label htmlFor="sortBy">Sort By</Label>
+        <Select
+          value={criteria.sortBy}
+          onValueChange={(value: 'price_asc' | 'price_desc' | 'date_desc' | 'date_asc') => 
+            setCriteria({ ...criteria, sortBy: value })}
+        >
+          <SelectTrigger>
+            <SelectValue placeholder="Sort by..." />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="date_desc">Newest First</SelectItem>
+            <SelectItem value="date_asc">Oldest First</SelectItem>
+            <SelectItem value="price_desc">Price (High to Low)</SelectItem>
+            <SelectItem value="price_asc">Price (Low to High)</SelectItem>
+          </SelectContent>
+        </Select>
       </div>
 
       <Button 

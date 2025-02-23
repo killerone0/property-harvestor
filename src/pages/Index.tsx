@@ -4,6 +4,7 @@ import { PropertySearchForm } from "@/components/PropertySearchForm";
 import { PropertyResults } from "@/components/PropertyResults";
 import { useToast } from "@/components/ui/use-toast";
 import { supabase } from "@/integrations/supabase/client";
+import { subDays } from "date-fns";
 
 interface Property {
   id: string;
@@ -26,21 +27,57 @@ const Index = () => {
   const handleSearch = async (criteria: any) => {
     setIsLoading(true);
     try {
-      // First, check for existing properties in the database
-      const { data: existingProperties, error: fetchError } = await supabase
+      // Build the query
+      let query = supabase
         .from('properties')
         .select('*')
         .ilike('location', `%${criteria.location}%`)
-        .order('updated_at', { ascending: false });
+        .gte('price', criteria.minPrice)
+        .lte('price', criteria.maxPrice);
+
+      // Apply property type filter
+      if (criteria.propertyType !== 'any') {
+        query = query.eq('property_type', criteria.propertyType);
+      }
+
+      // Apply bedrooms filter
+      if (criteria.bedrooms !== 'any') {
+        query = query.eq('bedrooms', parseInt(criteria.bedrooms));
+      }
+
+      // Apply date filter
+      if (criteria.daysListed) {
+        const cutoffDate = subDays(new Date(), criteria.daysListed);
+        query = query.gte('created_at', cutoffDate.toISOString());
+      }
+
+      // Apply sorting
+      switch (criteria.sortBy) {
+        case 'price_asc':
+          query = query.order('price', { ascending: true });
+          break;
+        case 'price_desc':
+          query = query.order('price', { ascending: false });
+          break;
+        case 'date_asc':
+          query = query.order('created_at', { ascending: true });
+          break;
+        case 'date_desc':
+        default:
+          query = query.order('created_at', { ascending: false });
+      }
+
+      // Execute query
+      const { data: existingProperties, error: fetchError } = await query;
 
       if (fetchError) throw fetchError;
 
-      // If we have recent results, show them immediately
+      // If we have results, show them immediately
       if (existingProperties && existingProperties.length > 0) {
         setProperties(existingProperties);
         toast({
-          title: "Found Existing Properties",
-          description: `Showing ${existingProperties.length} properties from our database`,
+          title: "Found Properties",
+          description: `Showing ${existingProperties.length} properties matching your criteria`,
         });
       }
 
@@ -54,7 +91,14 @@ const Index = () => {
       // Scrape each site
       const scrapePromises = sites.map(url =>
         supabase.functions.invoke('scrape-properties', {
-          body: { url, location: criteria.location }
+          body: { 
+            url, 
+            location: criteria.location,
+            propertyType: criteria.propertyType,
+            minPrice: criteria.minPrice,
+            maxPrice: criteria.maxPrice,
+            bedrooms: criteria.bedrooms
+          }
         })
       );
 
@@ -68,18 +112,22 @@ const Index = () => {
 
       if (newProperties.length > 0) {
         // Get fresh data from database after scraping
-        const { data: updatedProperties, error: updateError } = await supabase
-          .from('properties')
-          .select('*')
-          .ilike('location', `%${criteria.location}%`)
-          .order('updated_at', { ascending: false });
+        const { data: updatedProperties, error: updateError } = await query;
 
         if (updateError) throw updateError;
 
-        setProperties(updatedProperties || []);
+        if (updatedProperties) {
+          setProperties(updatedProperties);
+          toast({
+            title: "Search Complete",
+            description: `Found ${updatedProperties.length} properties matching your criteria`,
+          });
+        }
+      } else if (existingProperties?.length === 0) {
         toast({
-          title: "Search Complete",
-          description: `Found ${updatedProperties?.length || 0} properties matching your criteria`,
+          title: "No Properties Found",
+          description: "Try adjusting your search criteria",
+          variant: "destructive",
         });
       }
 
