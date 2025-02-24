@@ -13,6 +13,7 @@ export type Database = {
         Row: {
           bedrooms: number
           created_at: string | null
+          highlights: string[] | null
           id: string
           image_url: string | null
           location: string
@@ -26,6 +27,7 @@ export type Database = {
         Insert: {
           bedrooms: number
           created_at?: string | null
+          highlights?: string[] | null
           id?: string
           image_url?: string | null
           location: string
@@ -39,6 +41,7 @@ export type Database = {
         Update: {
           bedrooms?: number
           created_at?: string | null
+          highlights?: string[] | null
           id?: string
           image_url?: string | null
           location?: string

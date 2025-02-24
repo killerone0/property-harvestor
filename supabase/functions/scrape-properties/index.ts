@@ -1,3 +1,4 @@
+
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 import FirecrawlApp from 'https://esm.sh/@mendable/firecrawl-js@1'
@@ -39,7 +40,7 @@ const extractHighlights = (text: string): string[] => {
   ];
   
   features.forEach(({ regex, text, output }) => {
-    const match = text?.match(regex);
+    const match = text ? regex.test(text) : text?.match(regex);
     if (match) {
       highlights.add(output ? output(match) : text);
     }
@@ -67,7 +68,7 @@ serve(async (req) => {
   }
 
   try {
-    const { url, location, propertyTypes, minPrice, maxPrice, bedrooms, exclusions } = await req.json() as RequestBody
+    const body = await req.json() as RequestBody
     const apiKey = Deno.env.get('FIRECRAWL_API_KEY')
     
     if (!apiKey) {
@@ -76,10 +77,17 @@ serve(async (req) => {
 
     // Initialize Firecrawl
     const firecrawl = new FirecrawlApp({ apiKey })
-    console.log(`Starting crawl for URL: ${url} with filters:`, { location, propertyTypes, minPrice, maxPrice, bedrooms, exclusions })
+    console.log(`Starting crawl for URL: ${body.url} with filters:`, { 
+      location: body.location, 
+      propertyTypes: body.propertyTypes,
+      minPrice: body.minPrice,
+      maxPrice: body.maxPrice,
+      bedrooms: body.bedrooms,
+      exclusions: body.exclusions
+    })
     
     // Crawl the website
-    const result = await firecrawl.crawlUrl(url, {
+    const result = await firecrawl.crawlUrl(body.url, {
       limit: 100,
       scrapeOptions: {
         formats: ['markdown', 'html'],
@@ -109,26 +117,26 @@ serve(async (req) => {
         const description = (item.title || '') + ' ' + (item.description || '');
         
         // Check exclusions first
-        if (exclusions?.length && excludeProperty(description, exclusions)) {
+        if (body.exclusions?.length && excludeProperty(description, body.exclusions)) {
           return false;
         }
         
         return (
-          (!minPrice || price >= minPrice) &&
-          (!maxPrice || price <= maxPrice) &&
-          (!bedrooms || bedrooms === 'any' || bedroomCount === parseInt(bedrooms)) &&
-          (!propertyTypes?.length || propertyTypes.includes(itemType))
+          (!body.minPrice || price >= body.minPrice) &&
+          (!body.maxPrice || price <= body.maxPrice) &&
+          (!body.bedrooms || body.bedrooms === 'any' || bedroomCount === parseInt(body.bedrooms)) &&
+          (!body.propertyTypes?.length || body.propertyTypes.includes(itemType))
         );
       })
       .map((item: any) => ({
         title: item.title || 'Unknown Property',
-        price: parseFloat(item.price?.replace(/[^0.9.]/g, '') || '0'),
-        location: location,
+        price: parseFloat(item.price?.replace(/[^0-9.]/g, '') || '0'),
+        location: body.location,
         bedrooms: parseInt(item.bedrooms || '0'),
         property_type: (item.propertyType?.toLowerCase() || 'house') as 'house' | 'flat' | 'bungalow',
-        source: new URL(url).hostname,
+        source: new URL(body.url).hostname,
         image_url: item.imageUrl,
-        url: item.url || url,
+        url: item.url || body.url,
         highlights: extractHighlights((item.title || '') + ' ' + (item.description || '')),
       }));
 
