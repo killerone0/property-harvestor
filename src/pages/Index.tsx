@@ -17,6 +17,7 @@ interface Property {
   image_url: string;
   url: string;
   updated_at: string;
+  highlights?: string[];
 }
 
 const Index = () => {
@@ -85,15 +86,25 @@ const Index = () => {
       const agentSites = await supabase.functions.invoke('get-local-agents', {
         body: { 
           location: criteria.location,
-          radius: criteria.agentRadius
+          radius: parseInt(criteria.searchRadius)
         }
       });
 
-      // Combine default sites with local agent sites
+      // Define search sources based on user selection
+      const selectedSources = [];
+      if (criteria.searchSources.includes('rightmove')) {
+        selectedSources.push(`https://www.rightmove.co.uk/property-for-sale/find.html?searchType=SALE&locationIdentifier=${criteria.location}`);
+      }
+      if (criteria.searchSources.includes('zoopla')) {
+        selectedSources.push(`https://www.zoopla.co.uk/for-sale/property/${criteria.location}`);
+      }
+      if (criteria.searchSources.includes('onthemarket')) {
+        selectedSources.push(`https://www.onthemarket.com/for-sale/${criteria.location}`);
+      }
+
+      // Combine selected sources with local agent sites
       const sites = [
-        `https://www.rightmove.co.uk/property-for-sale/find.html?searchType=SALE&locationIdentifier=${criteria.location}`,
-        `https://www.zoopla.co.uk/for-sale/property/${criteria.location}`,
-        `https://www.onthemarket.com/for-sale/${criteria.location}`,
+        ...selectedSources,
         ...(agentSites.data?.agents || []).map((agent: any) => agent.website)
       ];
 
@@ -106,7 +117,8 @@ const Index = () => {
             propertyTypes: criteria.propertyTypes,
             minPrice: criteria.minPrice,
             maxPrice: criteria.maxPrice,
-            bedrooms: criteria.bedrooms
+            bedrooms: criteria.bedrooms,
+            exclusions: criteria.exclusions
           }
         })
       );

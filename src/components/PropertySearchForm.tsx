@@ -6,6 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Slider } from "@/components/ui/slider";
 import { Checkbox } from "@/components/ui/checkbox";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 
 interface SearchCriteria {
   location: string;
@@ -17,6 +18,8 @@ interface SearchCriteria {
   agentRadius: number;
   sortBy: 'price_asc' | 'price_desc' | 'date_desc' | 'date_asc';
   exclusions: string[];
+  searchSources: string[];
+  searchRadius: string;
 }
 
 interface PropertySearchFormProps {
@@ -37,6 +40,20 @@ const exclusionOptions = [
   { id: 'park_home', label: 'Park Homes' },
 ];
 
+const searchSourceOptions = [
+  { id: 'rightmove', label: 'Rightmove' },
+  { id: 'zoopla', label: 'Zoopla' },
+  { id: 'onthemarket', label: 'OnTheMarket' },
+];
+
+const radiusOptions = [
+  { value: '1', label: 'Within 1 mile' },
+  { value: '3', label: 'Within 3 miles' },
+  { value: '5', label: 'Within 5 miles' },
+  { value: '10', label: 'Within 10 miles' },
+  { value: '20', label: 'Within 20 miles' },
+];
+
 export const PropertySearchForm = ({ onSearch, isLoading }: PropertySearchFormProps) => {
   const [criteria, setCriteria] = useState<SearchCriteria>({
     location: "",
@@ -47,7 +64,9 @@ export const PropertySearchForm = ({ onSearch, isLoading }: PropertySearchFormPr
     daysListed: 30,
     agentRadius: 5,
     sortBy: 'date_desc',
-    exclusions: []
+    exclusions: [],
+    searchSources: ['rightmove', 'zoopla', 'onthemarket'],
+    searchRadius: '5'
   });
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -73,6 +92,15 @@ export const PropertySearchForm = ({ onSearch, isLoading }: PropertySearchFormPr
     }));
   };
 
+  const toggleSearchSource = (sourceId: string) => {
+    setCriteria(prev => ({
+      ...prev,
+      searchSources: prev.searchSources.includes(sourceId)
+        ? prev.searchSources.filter(id => id !== sourceId)
+        : [...prev.searchSources, sourceId]
+    }));
+  };
+
   return (
     <form onSubmit={handleSubmit} className="space-y-8 max-w-2xl mx-auto bg-white/80 backdrop-blur-sm p-8 rounded-xl shadow-sm border border-gray-100 transition-all duration-300">
       <div className="space-y-2">
@@ -85,6 +113,38 @@ export const PropertySearchForm = ({ onSearch, isLoading }: PropertySearchFormPr
           className="w-full transition-all duration-200"
           required
         />
+      </div>
+
+      <div className="space-y-4">
+        <Label>Search Sources</Label>
+        <div className="grid grid-cols-3 gap-4">
+          {searchSourceOptions.map((source) => (
+            <div key={source.id} className="flex items-center space-x-2">
+              <Checkbox
+                id={`source-${source.id}`}
+                checked={criteria.searchSources.includes(source.id)}
+                onCheckedChange={() => toggleSearchSource(source.id)}
+              />
+              <Label htmlFor={`source-${source.id}`} className="cursor-pointer">{source.label}</Label>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <div className="space-y-4">
+        <Label>Search Radius</Label>
+        <RadioGroup
+          value={criteria.searchRadius}
+          onValueChange={(value) => setCriteria({ ...criteria, searchRadius: value })}
+          className="grid grid-cols-2 gap-4"
+        >
+          {radiusOptions.map((option) => (
+            <div key={option.value} className="flex items-center space-x-2">
+              <RadioGroupItem value={option.value} id={`radius-${option.value}`} />
+              <Label htmlFor={`radius-${option.value}`}>{option.label}</Label>
+            </div>
+          ))}
+        </RadioGroup>
       </div>
 
       <div className="space-y-4">
