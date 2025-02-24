@@ -14,6 +14,7 @@ interface Property {
   image_url: string;
   url: string;
   updated_at: string;
+  highlights?: string[];
 }
 
 interface PropertyCardProps {
@@ -43,11 +44,22 @@ export const PropertyCard = ({ property }: PropertyCardProps) => {
       </CardHeader>
       
       <CardContent>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap gap-2 mb-3">
           <Badge variant="outline">{property.bedrooms} beds</Badge>
           <Badge variant="outline">{property.property_type}</Badge>
         </div>
-        <p className="mt-2 text-sm text-gray-700">{property.title}</p>
+        <p className="mb-4 text-sm text-gray-700">{property.title}</p>
+        
+        {property.highlights && property.highlights.length > 0 && (
+          <div className="space-y-2">
+            <h4 className="text-sm font-semibold text-gray-700">Key Features:</h4>
+            <ul className="text-sm text-gray-600 list-disc list-inside space-y-1">
+              {property.highlights.map((highlight, index) => (
+                <li key={index}>{highlight}</li>
+              ))}
+            </ul>
+          </div>
+        )}
       </CardContent>
       
       <CardFooter className="flex justify-between items-center text-sm text-gray-500">

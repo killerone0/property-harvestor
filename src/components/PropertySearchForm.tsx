@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -16,6 +15,7 @@ interface SearchCriteria {
   daysListed: number;
   agentRadius: number;
   sortBy: 'price_asc' | 'price_desc' | 'date_desc' | 'date_asc';
+  exclusions: string[];
 }
 
 interface PropertySearchFormProps {
@@ -29,6 +29,13 @@ const propertyTypeOptions = [
   { id: 'bungalow', label: 'Bungalow' },
 ];
 
+const exclusionOptions = [
+  { id: 'retirement', label: 'Retirement Homes' },
+  { id: 'auction', label: 'Auction Properties' },
+  { id: 'sold_stc', label: 'Sold STC' },
+  { id: 'park_home', label: 'Park Homes' },
+];
+
 export const PropertySearchForm = ({ onSearch, isLoading }: PropertySearchFormProps) => {
   const [criteria, setCriteria] = useState<SearchCriteria>({
     location: "",
@@ -38,7 +45,8 @@ export const PropertySearchForm = ({ onSearch, isLoading }: PropertySearchFormPr
     bedrooms: "any",
     daysListed: 30,
     agentRadius: 5,
-    sortBy: 'date_desc'
+    sortBy: 'date_desc',
+    exclusions: []
   });
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -52,6 +60,15 @@ export const PropertySearchForm = ({ onSearch, isLoading }: PropertySearchFormPr
       propertyTypes: prev.propertyTypes.includes(typeId)
         ? prev.propertyTypes.filter(id => id !== typeId)
         : [...prev.propertyTypes, typeId]
+    }));
+  };
+
+  const toggleExclusion = (exclusionId: string) => {
+    setCriteria(prev => ({
+      ...prev,
+      exclusions: prev.exclusions.includes(exclusionId)
+        ? prev.exclusions.filter(id => id !== exclusionId)
+        : [...prev.exclusions, exclusionId]
     }));
   };
 
@@ -101,6 +118,22 @@ export const PropertySearchForm = ({ onSearch, isLoading }: PropertySearchFormPr
                 onCheckedChange={() => togglePropertyType(type.id)}
               />
               <Label htmlFor={type.id} className="cursor-pointer">{type.label}</Label>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <div className="space-y-4">
+        <Label>Exclude Properties</Label>
+        <div className="grid grid-cols-2 gap-4">
+          {exclusionOptions.map((option) => (
+            <div key={option.id} className="flex items-center space-x-2">
+              <Checkbox
+                id={`exclude-${option.id}`}
+                checked={criteria.exclusions.includes(option.id)}
+                onCheckedChange={() => toggleExclusion(option.id)}
+              />
+              <Label htmlFor={`exclude-${option.id}`} className="cursor-pointer">{option.label}</Label>
             </div>
           ))}
         </div>
