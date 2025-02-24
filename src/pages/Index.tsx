@@ -68,7 +68,7 @@ const Index = () => {
           query = query.order('created_at', { ascending: false });
       }
 
-      // Execute query
+      // Execute query to get existing properties
       const { data: existingProperties, error: fetchError } = await query;
 
       if (fetchError) throw fetchError;
@@ -77,8 +77,8 @@ const Index = () => {
       if (existingProperties && existingProperties.length > 0) {
         setProperties(existingProperties);
         toast({
-          title: "Found Properties",
-          description: `Showing ${existingProperties.length} properties matching your criteria`,
+          title: "Found Existing Properties",
+          description: `Showing ${existingProperties.length} properties from previous searches`,
         });
       }
 
@@ -93,40 +93,87 @@ const Index = () => {
       // Define search sources based on user selection
       const selectedSources = [];
       if (criteria.searchSources.includes('rightmove')) {
-        selectedSources.push(`https://www.rightmove.co.uk/property-for-sale/find.html?searchType=SALE&locationIdentifier=${criteria.location}`);
+        selectedSources.push({
+          url: `https://www.rightmove.co.uk/property-for-sale/find.html?searchType=SALE&locationIdentifier=${criteria.location}`,
+          source: 'rightmove'
+        });
       }
       if (criteria.searchSources.includes('zoopla')) {
-        selectedSources.push(`https://www.zoopla.co.uk/for-sale/property/${criteria.location}`);
+        selectedSources.push({
+          url: `https://www.zoopla.co.uk/for-sale/property/${criteria.location}`,
+          source: 'zoopla'
+        });
       }
       if (criteria.searchSources.includes('onthemarket')) {
-        selectedSources.push(`https://www.onthemarket.com/for-sale/${criteria.location}`);
+        selectedSources.push({
+          url: `https://www.onthemarket.com/for-sale/${criteria.location}`,
+          source: 'onthemarket'
+        });
       }
 
-      // Combine selected sources with local agent sites
+      // Add local agent sites
       const sites = [
         ...selectedSources,
-        ...(agentSites.data?.agents || []).map((agent: any) => agent.website)
+        ...(agentSites.data?.agents || []).map((agent: any) => ({
+          url: agent.website,
+          source: 'local_agent'
+        }))
       ];
 
-      // Scrape each site
-      const scrapePromises = sites.map(url =>
-        supabase.functions.invoke('scrape-properties', {
-          body: { 
-            url, 
-            location: criteria.location,
-            propertyTypes: criteria.propertyTypes,
-            minPrice: criteria.minPrice,
-            maxPrice: criteria.maxPrice,
-            bedrooms: criteria.bedrooms,
-            exclusions: criteria.exclusions
-          }
-        })
-      );
+      if (sites.length === 0) {
+        toast({
+          title: "No Search Sources Selected",
+          description: "Please select at least one property website to search from.",
+          variant: "destructive",
+        });
+        return;
+      }
 
-      const results = await Promise.allSettled(scrapePromises);
+      // Scrape sites in batches to avoid rate limits
+      const batchSize = 2; // Scrape 2 sites at a time
+      const batches = [];
+      
+      for (let i = 0; i < sites.length; i += batchSize) {
+        const batch = sites.slice(i, i + batchSize);
+        
+        try {
+          const batchPromises = batch.map(site =>
+            supabase.functions.invoke('scrape-properties', {
+              body: { 
+                url: site.url, 
+                source: site.source,
+                location: criteria.location,
+                propertyTypes: criteria.propertyTypes,
+                minPrice: criteria.minPrice,
+                maxPrice: criteria.maxPrice,
+                bedrooms: criteria.bedrooms,
+                exclusions: criteria.exclusions
+              }
+            })
+          );
+
+          const batchResults = await Promise.allSettled(batchPromises);
+          batches.push(...batchResults);
+
+          // Wait 1 second between batches to respect rate limits
+          if (i + batchSize < sites.length) {
+            await new Promise(resolve => setTimeout(resolve, 1000));
+          }
+        } catch (error: any) {
+          console.error(`Batch scraping error:`, error);
+          if (error.message?.includes('rate limit')) {
+            toast({
+              title: "Rate Limit Reached",
+              description: "Please wait a minute before searching again.",
+              variant: "destructive",
+            });
+            break;
+          }
+        }
+      }
 
       // Process successful results
-      const newProperties = results
+      const newProperties = batches
         .filter((result): result is PromiseFulfilledResult<any> => 
           result.status === 'fulfilled' && result.value.data?.success)
         .flatMap(result => result.value.data.properties);
@@ -144,19 +191,19 @@ const Index = () => {
             description: `Found ${updatedProperties.length} properties matching your criteria`,
           });
         }
-      } else if (existingProperties?.length === 0) {
+      } else if (!existingProperties || existingProperties.length === 0) {
         toast({
           title: "No Properties Found",
-          description: "Try adjusting your search criteria",
+          description: "Try adjusting your search criteria or selecting different property websites",
           variant: "destructive",
         });
       }
 
-    } catch (error) {
+    } catch (error: any) {
       console.error("Search error:", error);
       toast({
         title: "Error",
-        description: "Failed to fetch properties. Please try again.",
+        description: error.message || "Failed to fetch properties. Please try again.",
         variant: "destructive",
       });
     } finally {
